@@ -6,7 +6,7 @@ const createEmployee = async (req, res) => {
     const { username,designation,email, password } = req.body;
 
     try {
-        // Connect to MongoDB
+        // Connect to Mongo
         const { database, client } = await mongo();
 
         // Accessing the 'employees' collection in the MongoDB database
