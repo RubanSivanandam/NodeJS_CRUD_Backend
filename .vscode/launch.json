@@ -1,0 +1,10 @@
+{
+    "configurations": [
+        {
+            "type": "chrome",
+            "name": "http://localhost:8080/api/v1/employees/10",
+            "request": "launch",
+            "url": "http://localhost:8080/api/v1/employees/10"
+        }
+    ]
+}
