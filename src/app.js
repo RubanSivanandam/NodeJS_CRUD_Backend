@@ -4,7 +4,9 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const nocache = require('nocache');
 const helmet = require('helmet');
-
+// const {authenticateJWT} = require('./middlewares/authMiddleware')
+const {authenticateJWT} = require('./middlewares/authMiddleware')
+const {unless}=require('express-unless')
 // Importing employeeRoutes module
 const employeeRoute = require('./routes/employeeRoutes');
 
@@ -38,10 +40,27 @@ app.disable('x-powered-by');
 // Using nocache middleware to prevent caching
 app.use(nocache());
 
+// Attach the unless function to the authenticateJWT middleware
+authenticateJWT.unless =unless;
+console.log('authenticateJWT')
+
+// Configure the middleware to ignore authentication for specified paths
+app.use(
+    authenticateJWT.unless({
+        path: [
+            { url: '/api/v1/employees/create', methods: ['POST'] },
+            { url: '/api/v1/employees/login', methods: ['POST'] },
+        ],
+    })
+);
+
+// Define a simple callback function to handle a GET request
+employeeRoute.get('/example', (req, res) => {
+    res.send('Hello from GET request!');
+});
+
 // Setting the port number
 const port = process.env.PORT || 8090;
 
 // Starting the Express server
 app.listen(port, () => console.log(`Server is running on port ${port}`));
-
-

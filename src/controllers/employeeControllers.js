@@ -1,16 +1,44 @@
-// Importing the MongoDB configuration file
-const mongo = require('../config/mongodb');
-
+// Importing the required modules
+const bcrypt = require('bcrypt');
+const validator = require('validator');
+const mongo=require('../config/mongodb')
+const {generateJWTToken}=require('../utils/jwUtils')
+/* const {authenticateJWT}=require('./../middlewares/authMiddleware') */
 // Function to create a new employee
 const createEmployee = async (req, res) => {
-    const { username,designation,email, password } = req.body;
+    const { username, designation, email, password } = req.body;
+   // Connect to Mongo
+   const { database, client } = await mongo();
 
+   // Accessing the 'employees' collection in the MongoDB database
+   const collection = database.collection('employee');
     try {
-        // Connect to Mongo
-        const { database, client } = await mongo();
+        // Check if the email is valid
+        if (!validator.isEmail(email)) {
+            return res.status(400).json({ message: 'Invalid email address' });
+        }
 
-        // Accessing the 'employees' collection in the MongoDB database
-        const collection = database.collection('employee');
+        // Check if the username is valid
+        if (!validator.isAlphanumeric(username)) {
+            return res.status(400).json({ message: 'Username must be alphanumeric' });
+        }
+
+        // Check if user already exists
+        const existingUser = await collection.findOne({ $or: [{ email }, { username }] });
+        if (existingUser) {
+            return res.status(400).json({ message: 'User with this email or username already exists' });
+        }
+
+        // Check if password is long enough
+        if (password.length < 8) {
+            return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+        }
+
+        // Hash the password with saltround of 10
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Determine if the user is registering as an admin
+        let role = 'user'; // Default role
 
         // Retrieve the last used ID from the database
         const lastEmployee = await collection.findOne({}, { sort: { id: -1 } });
@@ -19,27 +47,28 @@ const createEmployee = async (req, res) => {
         if (lastEmployee) {
             lastId = parseInt(lastEmployee.id);
         }
-        
+         
         // Generate the new ID by incrementing the last ID
         const newId = lastId + 1;
 
-        // Inserting the new employee document into the collection
+        // Create a new User document
         await collection.insertOne({
             id: newId, // Use the newly generated ID
             username,
             designation,
             email,
-            password
+            password: hashedPassword,
+            role
         });
-
-        // Logging success
-        console.log("Employee inserted into MongoDB successfully");
 
         // Close the MongoDB connection
         client.close();
 
+        // Logging success
+        console.log("User registered successfully");
+
         // Send 201 response indicating success
-        res.status(201).json({ message: "Employee created successfully" });
+        res.status(201).json({ message: "User registered successfully" });
     } catch (error) {
         // Handling errors
         console.error('Error:', error);
@@ -48,8 +77,10 @@ const createEmployee = async (req, res) => {
     }
 };
 
+module.exports = createEmployee;
+
 // Function to update an existing employee by ID
-const updateEmployee = async (req, resp) => {
+const updateEmployee = async (req, res) => {
     // Extracting data from request body
     const { id, username,designation,email, password } = req.body;
 
@@ -75,20 +106,20 @@ const updateEmployee = async (req, resp) => {
             client.close();
 
             // Send success response
-            resp.status(200).json({message:"Employee updated successfully"});
+            res.status(200).json({message:"Employee updated successfully"});
         } else {
             // Close the MongoDB connection
             client.close();
 
             // Send 404 response if employee with specified ID was not found
-            resp.status(404).json({error:"Employee not found"});
+            res.status(404).json({error:"Employee not found"});
         }
     } catch (error) {
         // Handling errors
         console.error('Error:', error);
 
         // Send 500 response for internal server error
-        resp.status(500).send("Internal Server Error");
+        res.status(500).send("Internal Server Error");
     }
 };
 // Function to delete an employee
@@ -163,11 +194,61 @@ const getByEmployeeId = async (req, res) => {
     }
 };
 
+// Function to login with validation
+const loginEmployee = async (req, res) => {
+    // Extracting data from request body
+     // Connect to Mongo
+   const { database, client } = await mongo();
+
+   // Accessing the 'employees' collection in the MongoDB database
+   const collection = database.collection('employee');
+    try {
+        // Find the user by email
+        const user = await collection.findOne({ email: req.body.email });
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid Email' });
+        }
+
+        // Compare the provided Password with Hashed password
+        const isPasswordValid = await bcrypt.compare(req.body.password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: 'Invalid Password' });
+        }
+
+        // If authentication is successful, generate a JWT Token
+        const token = generateJWTToken(user);
+
+        // Check if user is an admin
+        if (user.role === 'admin') {
+            return res.status(200).json({ message: 'Welcome, admin', token });
+        }
+
+        // Check if user is a regular user
+        if (user.role === 'user') {
+            return res.status(200).json({ message: 'User access granted', token });
+
+    // Logging success
+    console.log("User registered successfully");
+        }
+
+        // If role is neither admin nor user, return 403 Forbidden
+        return res.status(403).json({ message: 'Access forbidden, invalid role' });
+
+    } catch (error) {
+        console.error('Error logging in:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+    // Close the MongoDB connection
+    client.close();
+
+    
+}
 // Exporting functions to be used in the route layer
 module.exports = {
     createEmployee,
     deleteEmployee,
     getByEmployeeId,
     getEmployees,
-    updateEmployee
+    updateEmployee,
+    loginEmployee
 };
