@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const nocache = require('nocache');
 const helmet = require('helmet');
-// const {authenticateJWT} = require('./middlewares/authMiddleware')
+require('dotenv').config(); // Load environment variables
 const {authenticateJWT} = require('./middlewares/authMiddleware')
 const {unless}=require('express-unless')
 // Importing employeeRoutes module
@@ -42,22 +42,22 @@ app.use(nocache());
 
 // Attach the unless function to the authenticateJWT middleware
 authenticateJWT.unless =unless;
-console.log('authenticateJWT')
+
 
 // Configure the middleware to ignore authentication for specified paths
 app.use(
     authenticateJWT.unless({
         path: [
-            { url: '/api/v1/employees/create', methods: ['POST'] },
+            { url: '/api/v1/employees/register', methods: ['POST'] },
             { url: '/api/v1/employees/login', methods: ['POST'] },
         ],
     })
 );
 
 // Define a simple callback function to handle a GET request
-employeeRoute.get('/example', (req, res) => {
+/*employeeRoute.get('/example', (req, res) => {
     res.send('Hello from GET request!');
-});
+});*/
 
 // Setting the port number
 const port = process.env.PORT || 8090;

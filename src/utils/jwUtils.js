@@ -8,7 +8,8 @@ function generateJWTToken(user) {
         user: {
             id: user._id,          // User ID
             email: user.email,      // User email
-            password:user.password  // User password   
+            password:user.password,  // User password   
+            role:user.role //User role
             // You can add any other user data you want to include in the token payload
         }
     };

@@ -1,9 +1,7 @@
 const jwt = require('jsonwebtoken');
-const unless = require('express-unless'); // Import the unless function from express-unless module
-const { MongoClient } = require('mongodb'); // Import the MongoClient from MongoDB
 
 // Middleware function to verify JWT token
-const authenticateJWT = async (req, res, next) => {
+async function authenticateJWT(req, res, next) {
     try {
         // Get token from the request header
         const authorizationHeader = req.header('Authorization');
@@ -23,25 +21,13 @@ const authenticateJWT = async (req, res, next) => {
         // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Connect to MongoDB
-        const client = new MongoClient(process.env.MONGODB_URI);
-        await client.connect();
-        const database = client.db(process.env.DB_NAME);
-
-        // Query the database to retrieve user information based on the decoded token
-        const user = await database.collection('employees').findOne({ _id: decoded.user.id });
-
-        if (!user) {
-            return res.status(401).json({ message: 'User not found' });
-        }
-
         // Attach user information to the request object
-        req.user = user;
-        
-        // Close the MongoDB connection
-        await client.close();
+        req.user = {
+            id: decoded.user.id,
+            username: decoded.user.username, // Assuming username is included in the JWT payload
+            role:decoded.user.role
+        };
 
-        // Call the next middleware
         next();
     } catch (error) {
         console.error('Error authenticating JWT Token:', error);
@@ -49,9 +35,4 @@ const authenticateJWT = async (req, res, next) => {
     }
 }
 
-
-/* // Assign the 'unless' function to the 'authenticateJWT' middleware
-authenticateJWT.unless = unless; */
-
-// Export the 'authenticateJWT' middleware
-module.exports={authenticateJWT}
+module.exports = { authenticateJWT };

@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const validator = require('validator');
 const mongo=require('../config/mongodb')
 const {generateJWTToken}=require('../utils/jwUtils')
-/* const {authenticateJWT}=require('./../middlewares/authMiddleware') */
+
 // Function to create a new employee
 const createEmployee = async (req, res) => {
     const { username, designation, email, password } = req.body;
@@ -29,16 +29,19 @@ const createEmployee = async (req, res) => {
             return res.status(400).json({ message: 'User with this email or username already exists' });
         }
 
-        // Check if password is long enough
-        if (password.length < 8) {
-            return res.status(400).json({ message: 'Password must be at least 8 characters long' });
-        }
-
+       // Check password criteria
+        if (!(password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /[$#@*]/.test(password)&& /[0-9]/.test(password))) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters long and contain at least one capital letter, one small letter, and one special character such as #$@*' });
+         }
+    
         // Hash the password with saltround of 10
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Determine if the user is registering as an admin
-        let role = 'user'; // Default role
+         // Determine if the user is registering as an admin
+         let role = 'user'; // Default role
+         if (req.body.admin) {
+             role = 'admin';   //admin role given during http request from frontend
+         }
 
         // Retrieve the last used ID from the database
         const lastEmployee = await collection.findOne({}, { sort: { id: -1 } });
@@ -125,6 +128,11 @@ const updateEmployee = async (req, res) => {
 // Function to delete an employee
 const deleteEmployee = async (req, res) => {
     try {
+        // Check if user is an admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access forbidden, admin role required' });
+        }
+
         // Connect to MongoDB
         const { database } = await mongo();
 
