@@ -13,22 +13,31 @@ const createEmployee = async (req, res) => {
    // Accessing the 'employees' collection in the MongoDB database
    const collection = database.collection('employee');
     try {
-        // Check if the email is valid
-        if (!validator.isEmail(email)) {
-            return res.status(400).json({ message: 'Invalid email address' });
-        }
+        // Check if the email is valid by checking the below regex pattern
+      
+    const emailRegex = /^[a-zA-Z0-9._]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+
+    // Check if the email matches the custom regex pattern
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: 'Invalid email address' });
+    }
 
         // Check if the username is valid
         if (!validator.isAlphanumeric(username)) {
             return res.status(400).json({ message: 'Username must be alphanumeric' });
         }
 
-        // Check if user already exists
-        const existingUser = await collection.findOne({ $or: [{ email }, { username }] });
+        // Check if email already exists
+        let existingUser = await collection.findOne( { email  });
         if (existingUser) {
-            return res.status(400).json({ message: 'User with this email or username already exists' });
+            return res.status(400).json({ message: 'User with this email already exists' });
         }
-
+        else {
+            existingUser=await collection.findOne({username});
+        if (existingUser) {
+            return res.status(400).json({ message: 'User with this username already exists' });
+        }
+    }
        // Check password criteria
         if (!(password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /[$#@*]/.test(password)&& /[0-9]/.test(password))) {
         return res.status(400).json({ message: 'Password must be at least 8 characters long and contain at least one capital letter, one small letter, and one special character such as #$@*' });
@@ -80,7 +89,7 @@ const createEmployee = async (req, res) => {
     }
 };
 
-module.exports = createEmployee;
+
 
 // Function to update an existing employee by ID
 const updateEmployee = async (req, res) => {
